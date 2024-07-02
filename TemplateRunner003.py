@@ -16,6 +16,7 @@ import scipy
 
 import glob
 import sys
+import datetime
 
 
 # In[ ]:
@@ -46,23 +47,40 @@ INIT_WINDEV = templateObj["INIT_WINDEV"]
 WIN_ALPHA_MEAN = templateObj['WIN_ALPHA_MEAN']
 
 
+def get_info(path):
+    filename = path[110:]
+            
+    # Getting deviceno from path as it can be variable length (but not storing it)
+    i = 3
+    while filename[i] != '_':
+        i += 1
+    
+    year = int(filename[i+1:i+5])
+    
+    return filename, year
+
 # In[ ]:
 
-files=glob.glob("C:/Users/Amogh/Downloads/DATA/DATA/CaracalChitalDetector/Test set/1 hour files/*.wav",recursive=True)
+files = glob.glob("C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/Test set/1 hour files/*.wav",recursive=True)
 #files=glob.glob(sys.argv[1],recursive=True)
 
-fout=open('C:/Users/Amogh/Downloads/DATA/DATA/CaracalChitalDetector/autodetect.txt','wt')
+fout = open('C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/autodetect.txt','wt')
 #fout=open(sys.argv[2],'wt')
     
 fnk=0
 for fn in files:
+    # Gets the filename (without path) and the year and will ignore any 2023 files as they are badly labelled
+    filename_chopped, year = get_info(fn)
+    if year < 2024:
+        continue
+
     fnk=fnk+1
-    print('{}\t{}\n'.format(fnk,fn))
+    print('{}\t{}\n'.format(fnk, filename_chopped))
     
     filename = fn
     #filename = "C:\\CloudData\\2024\\Nepal\\ML002\\file_1711184400.wav"
     
-    fout.write('{}\t'.format(fn))
+    fout.write('{}\t'.format(filename_chopped))
     
         
     aud,sr = librosa.load(filename,sr=ML_SR)
@@ -218,4 +236,3 @@ for fn in files:
     fout.write('\n')
         
 fout.close()
-    
