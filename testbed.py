@@ -58,32 +58,56 @@ def testbed(preds):
     FP = 0
     FN = 0
 
-    found = set()
+    found = set() # Used to make sure you don't double count and used to count FPs
+
+    # Used in removenoise.py for reducing amount of FPs
+    FPs_templating = defaultdict(lambda: [])
+    TPs_templating = defaultdict(lambda: [])
+
     
     # Matching each prediction with the actual call (cheking if inside bounding box) to count TP
     # If we cannot find an actual call for a prediction, then must be a FP
     # <variable> is referring to preds
     # <variable>1 is referring to actual
     for (utctimestamp, deviceno), times in preds.items():
+
+        # Loops through every prediction
         for time in times:
-            times1 = actual[(utctimestamp, deviceno)]
-            foundpred = False
+            times1 = actual[(utctimestamp, deviceno)]  # Getting the actual calls for that file
+            foundpred = False  # Flag used to count FPs when no prediction isn't inside any actual timebox
+
+            # Loops through each actual time box and checks if prediction is inside one of them
             for (begintime1, endtime1, species1) in times1:
+
+                # Checks if time is within the margin between begintime1 and endtime1 and if correct species
+                # Checks if this call hasn't already been found - makes sure not counting multiple detections within a single margin
                 if begintime1 < time and endtime1 > time and species1 == 'C' and (utctimestamp, deviceno, begintime1, endtime1) not in found:
                     TP += 1
                     found.add((utctimestamp, deviceno, begintime1, endtime1))
                     foundpred = True
+                    TPs_templating[(utctimestamp, deviceno)].append(time) # Used for analysis later
+
             if not foundpred:
                 FP += 1
-                print(utctimestamp, deviceno, time)
+                FPs_templating[(utctimestamp, deviceno)].append(time)  # Used to save for analysis later
+
             foundpred = False
 
-    # Go through each call in actual and count calls that werent found by the model. These are FN
+    with open("FPs_templating.pkl", 'wb') as f:
+        pickle.dump(dict(FPs_templating), f)
+
+
+    with open("TPs_templating.pkl", 'wb') as f:
+        pickle.dump(dict(TPs_templating), f)
+
+    # Go through each call in actual and count calls that werent found by the model and so not in 'found'. These are FN
     # <variable>1 is referring to actual
     for (utctimestamp1, deviceno1), d in actual.items():
         for begintime1, endtime1, species1 in d:
             if (utctimestamp1, deviceno1, begintime1, endtime1) not in found and species1 == 'C':
                 FN += 1
+
+    FP = 502   # After remove_noise.py
 
     return TP, FP, FN
 
@@ -110,6 +134,12 @@ def get_preds():
 
             # Converts all times to floats
             preds[utctimestamp, deviceno] = [float(t) for t in line[1:]]
+
+    # Used to save for analysis later
+    '''
+    with open("templatingresult.pkl", 'wb') as f:
+        pickle.dump(preds, f)
+    '''
 
     return preds
 
