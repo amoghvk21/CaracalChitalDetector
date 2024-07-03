@@ -4,14 +4,16 @@ import datetime
 from collections import defaultdict
 
 
+WORKING_DIR = 'C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/'
+
 def create_master_db():
-    paths = glob("C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/Test set/1 hour files/*.txt", recursive=True)
+    paths = glob(WORKING_DIR + "data/Test set/1 hour files/*.txt", recursive=True)
     
     data = defaultdict(lambda: [])
 
     for path in paths:
         with open(path, 'r') as f:
-            filename = path[110:]
+            filename = path[115:]
             
             # Getting deviceno from path as it can be variable length
             deviceno = ''
@@ -46,12 +48,12 @@ def create_master_db():
                 data[(utctimestamp, deviceno)].append((begintime, endtime, species))
 
     # Save parsed data for easier access later
-    with open('selectiontabledata.pkl', 'wb') as f:
+    with open(WORKING_DIR + 'data/py_obj/selectiontabledata.pkl', 'wb') as f:
         pickle.dump(dict(data), f)
 
 
 def testbed(preds):
-    with open("selectiontabledata.pkl", 'rb') as f:
+    with open(WORKING_DIR + "data/py_obj/selectiontabledata.pkl", 'rb') as f:
         actual = pickle.load(f)
 
     TP = 0
@@ -93,11 +95,11 @@ def testbed(preds):
 
             foundpred = False
 
-    with open("FPs_templating.pkl", 'wb') as f:
+    with open(WORKING_DIR + "data/py_obj/FPs_templating.pkl", 'wb') as f:
         pickle.dump(dict(FPs_templating), f)
 
 
-    with open("TPs_templating.pkl", 'wb') as f:
+    with open(WORKING_DIR + "data/py_obj/TPs_templating.pkl", 'wb') as f:
         pickle.dump(dict(TPs_templating), f)
 
     # Go through each call in actual and count calls that werent found by the model and so not in 'found'. These are FN
@@ -118,7 +120,7 @@ def get_preds():
 
     preds = {}
 
-    with open('autodetect.txt', 'r') as f:
+    with open(WORKING_DIR + 'original_model/autodetect.txt', 'r') as f:
         for line in f.readlines():
             line = line.split()
             path = line[0]
@@ -137,7 +139,7 @@ def get_preds():
 
     # Used to save for analysis later
     '''
-    with open("templatingresult.pkl", 'wb') as f:
+    with open(WORKING_DIR + "data/py_obj/templatingresult.pkl", 'wb') as f:
         pickle.dump(preds, f)
     '''
 

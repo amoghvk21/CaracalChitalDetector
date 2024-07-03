@@ -2,12 +2,17 @@
 import pickle
 
 
+WORKING_DIR = 'C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/'
+
+
 # Just counts no of calls which should be the same as TP + FN
-with open('selectiontabledata.pkl', 'rb') as f:
+with open(WORKING_DIR + 'data/py_obj/selectiontabledata.pkl', 'rb') as f:
     actual = pickle.load(f)
 
 count = 0
 
+# Going through each selection table and counting all the C's
+# Number of actual C calls which is TP + FN
 for (_, _), times in actual.items():
     for _, _, species in times:
         if species == 'C':
@@ -21,7 +26,7 @@ print(f'TP + FN (no of calls): {count}')
 # Counts no of deciaml points (as each detection has one) and minuses the decimal points from the .wav part as they don't correspond to a detection
 count = 0
 
-with open('autodetect.txt', 'r') as f:
+with open(WORKING_DIR + 'original_model/autodetect.txt', 'r') as f:
     for line in f:
         count += line.count('.')
 
