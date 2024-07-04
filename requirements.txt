@@ -1,6 +1,7 @@
 # This file may be used to create an environment using:
 # $ conda create --name <env> --file <this file>
 # platform: win-64
+# Please note version of numpy required - Some libs don't have support for 2.0.0 yet
 anyio=4.4.0=pypi_0
 argon2-cffi=23.1.0=pypi_0
 argon2-cffi-bindings=21.2.0=pypi_0

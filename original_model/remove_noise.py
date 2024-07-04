@@ -4,6 +4,7 @@ import numpy as np
 from datetime import datetime
 import pytz
 from glob import glob
+from collections import defaultdict
 
 
 # Relative working directory
@@ -119,6 +120,9 @@ total = 0
 # Previous no of FPs
 prev_total = 0
 
+# New dict of FPs after removed the ones with noise
+new_FPs = defaultdict(lambda: [])
+
 for (utctimestamp, deviceno), times in FPs_templating.items():
     # Get filepath and open wav file
     timezone = pytz.timezone('Asia/Kathmandu')
@@ -157,11 +161,51 @@ for (utctimestamp, deviceno), times in FPs_templating.items():
         # Check if calculated sd is less than mean, then will be classified as noise
         if sd < sd_TP_mean:
             total += 1
+        else:
+            # These are still FPs so add them to the new datastructure storing this reduced set of FPs
+            new_FPs[(utctimestamp, deviceno)].append(time)
+            
         
         prev_total += 1
-        
+
+# Used in analysis of a sample
+with open(WORKING_DIR + "data/py_obj/FPs_templating_new.pkl", 'wb') as f:
+    pickle.dump(dict(new_FPs), f)
+
 print(f'No of FP that can be changed to TN (due to detecting noise): {total}')
 print(f'Previous no of FPs {prev_total}')
 print(f'New no of FPs: {prev_total-total}')
 
+
 # Resulting new FP is 502
+
+
+# Count no of FPs that are O
+# Load the actual data from selection tables
+with open(WORKING_DIR + "data/py_obj/selectiontabledata.pkl", 'rb') as f:
+    actual = pickle.load(f)
+
+found = set()
+
+# No of O calls in the new smaller set of FPs
+O = 0
+
+# Iterate through all these new FPs that we calculated before
+for (utctimestamp, deviceno), times in new_FPs.items():
+
+        # Loops through every FP
+        for time in times:
+            times1 = actual[(utctimestamp, deviceno)]    # Gets the actual calls for that file
+
+            # Checks if a O call happened within according to the actual selection table data
+            # Loops through each actual time box and checks if prediction is inside one of them
+            for (begintime1, endtime1, species1) in times1:
+                # Checks if time is within the margin between begintime1 and endtime1 and if correct species
+                # Checks if this call hasn't already been found - makes sure not counting multiple detections within a single margin
+                if begintime1 < time and endtime1 > time and species1 == 'O' and (utctimestamp, deviceno, begintime1, endtime1) not in found:
+                    O += 1
+                    found.add((utctimestamp, deviceno, begintime1, endtime1))
+
+print()
+print(f"No of O calls within the {prev_total-total} new FPs is: {O}")
+print(f'New no of FPs is {prev_total-total-O}')

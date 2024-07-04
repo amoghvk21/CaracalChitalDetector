@@ -5,6 +5,7 @@ from collections import defaultdict
 
 
 WORKING_DIR = 'C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/'
+OFFSET = 0.5
 
 def create_master_db():
     paths = glob(WORKING_DIR + "data/Test set/1 hour files/*.txt", recursive=True)
@@ -66,6 +67,9 @@ def testbed(preds):
     FPs_templating = defaultdict(lambda: [])
     TPs_templating = defaultdict(lambda: [])
 
+    # Used to store all the FPs that refer to Os
+    found_O = set()
+    found_O_dict = defaultdict(lambda: [])
     
     # Matching each prediction with the actual call (cheking if inside bounding box) to count TP
     # If we cannot find an actual call for a prediction, then must be a FP
@@ -83,11 +87,24 @@ def testbed(preds):
 
                 # Checks if time is within the margin between begintime1 and endtime1 and if correct species
                 # Checks if this call hasn't already been found - makes sure not counting multiple detections within a single margin
-                if begintime1 < time and endtime1 > time and species1 == 'C' and (utctimestamp, deviceno, begintime1, endtime1) not in found:
+                if begintime1-OFFSET < time and endtime1+OFFSET > time and species1 == 'C' and (utctimestamp, deviceno, begintime1, endtime1) not in found:
                     TP += 1
                     found.add((utctimestamp, deviceno, begintime1, endtime1))
                     foundpred = True
                     TPs_templating[(utctimestamp, deviceno)].append(time) # Used for analysis later
+                    break
+                
+                # Stores all the FPs that refer to Os - Used in different file
+                elif begintime1 < time and endtime1 > time and species1 == 'O' and (utctimestamp, deviceno, begintime1, endtime1) not in found_O:
+                    found_O.add((utctimestamp, deviceno, begintime1, endtime1))
+                    found_O_dict[(utctimestamp, deviceno)].append((begintime1, endtime1))
+                    break
+                
+                # If detection is already found, then we don't add it to FPs and we just ignore it
+                elif begintime1 < time and endtime1 > time and species1 == 'C' and (utctimestamp, deviceno, begintime1, endtime1) in found:
+                    foundpred = True
+                    break
+                
 
             if not foundpred:
                 FP += 1
@@ -95,12 +112,17 @@ def testbed(preds):
 
             foundpred = False
 
+    #print('already found:', already_found)
+
     with open(WORKING_DIR + "data/py_obj/FPs_templating.pkl", 'wb') as f:
         pickle.dump(dict(FPs_templating), f)
 
 
     with open(WORKING_DIR + "data/py_obj/TPs_templating.pkl", 'wb') as f:
         pickle.dump(dict(TPs_templating), f)
+    
+    with open(WORKING_DIR + "data/py_obj/FPs_templating_O.pkl", 'wb') as f:
+        pickle.dump(dict(found_O_dict), f)
 
     # Go through each call in actual and count calls that werent found by the model and so not in 'found'. These are FN
     # <variable>1 is referring to actual
@@ -109,8 +131,8 @@ def testbed(preds):
             if (utctimestamp1, deviceno1, begintime1, endtime1) not in found and species1 == 'C':
                 FN += 1
 
-    FP = 502   # After remove_noise.py
-
+    FP = 281   # After remove_noise.py
+    
     return TP, FP, FN
 
 

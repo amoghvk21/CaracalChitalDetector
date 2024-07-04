@@ -24,6 +24,9 @@ print(f'TP + FN (no of calls): {count}')
 # Just counts total no of detections which should be the same as TP + FP
 # This case we are testing the templating model
 # Counts no of deciaml points (as each detection has one) and minuses the decimal points from the .wav part as they don't correspond to a detection
+
+# WRONG - As TP + FP is not equal to no of detections 
+# due to some FPs corresponding to already found calls and they are ignored as FPs in testbed.py
 count = 0
 
 with open(WORKING_DIR + 'original_model/autodetect.txt', 'r') as f:
