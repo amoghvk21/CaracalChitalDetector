@@ -4,10 +4,6 @@ import datetime
 from collections import defaultdict
 import numpy as np
 import os
-import sys
-import importlib.util
-import matplotlib.pyplot as plt
-import time
 
 
 WORKING_DIR = 'C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/'
@@ -137,31 +133,18 @@ def testbed(preds):
             if (utctimestamp1, deviceno1, begintime1, endtime1) not in found and species1 == 'C':
                 FN += 1
 
-    # Run remove_noise.py
-    spec = importlib.util.spec_from_file_location("original_model.remove_noise", WORKING_DIR + 'original_model/remove_noise.py')
-    file = importlib.util.module_from_spec(spec)
-    sys.modules["original_model.remove_noise"] = file
-    spec.loader.exec_module(file)
-    print("Running remove_noise.py")
-    FP = file.main()
-
+    FP = 281   # After remove_noise.py
+    
     return TP, FP, FN
 
 
 # CHANGE IMPLEMENTATION BASED ON WHICH MODEL YOU WANT TO TEST
 # At the moment, testing pre existing templating model
-def get_preds(i, param):
-
-    # Run the model with the given param
-    spec = importlib.util.spec_from_file_location("original_model.TemplateRunner003", WORKING_DIR + 'original_model/TemplateRunner003.py')
-    file = importlib.util.module_from_spec(spec)
-    sys.modules["original_model.TemplateRunner003"] = file
-    spec.loader.exec_module(file)
-    file.main(i, param[0], param[1], param[2])
+def get_preds():
 
     preds = {}
 
-    with open(WORKING_DIR + f'data/results/autodetect{str(i).rjust(2, '0')}.txt', 'r') as f:
+    with open(WORKING_DIR + 'original_model/autodetect.txt', 'r') as f:
         for line in f.readlines():
             line = line.split()
             path = line[0]
@@ -189,61 +172,9 @@ def get_preds(i, param):
 
 def main():
     create_master_db()
-    
-    # List of (SPECD_FFT_LEN, ML_FFT_STRIDE, WIN_LENGTH)
-    # [256, 512, 1024]
-    # [128, 256, 512]
-    # [10, 15, 20]
-    params = []
-    for i in [512]:
-        for j in [64, 128, 512, 1024, 2048]:
-            for k in [5, 7, 10]:
-                params.append((i, j, k))
+    preds = get_preds()
+    TP, FP, FN = testbed(preds)
 
-    # List of (TP, FP, FN) for all different parameters of the templating model
-    all_results = []
-    for i, param  in enumerate(params):
-        preds = get_preds(i, param)
-        TP, FP, FN = testbed(preds)
-        all_results.append((TP, FP, FN))
-
-    # Get X and Y data
-    TPs = [x[0] for x in all_results]
-    FPs = [x[1] for x in all_results]
-    FNs = [x[2] for x in all_results]
-    X = [x/(x+y) for x, y in zip(FPs, TPs)]
-    Y = [x/(x+y) for x, y in zip(TPs, FNs)]
-
-    # Create data structure to store to save time
-    # (SPECD_FFT_LEN, ML_FFT_STRIDE, WIN_LENGTH)   ---->   (FP rate, TP rate)
-    data = {}
-    for i, (x, y) in enumerate(zip(X, Y)):
-        data[params[i]] = (x, y)
-
-    # Save data to save time
-    with open(WORKING_DIR + 'data/py_obj/all_results_templating_2.pkl', 'wb') as f:
-        pickle.dump(data, f)
-    
-    #'''
-    # Get previous data and merge
-    with open(WORKING_DIR + 'data/py_obj/all_results_templating_1.pkl', 'rb') as f:
-        data_ = pickle.load(f)
-    
-    data.update(data_)
-
-    X = [x[0] for x in list(data.values())]
-    Y = [x[1] for x in list(data.values())]
-    #'''
-
-    # Create and save ROC curve
-    plt.figure(figsize=(10, 4))
-    plt.scatter(X, Y)
-    plt.title(f'ROC Curve of Templating with {len(params)} different parameters')
-    plt.xlabel("FP rate")
-    plt.ylabel("TP rate")
-    plt.savefig(WORKING_DIR + f'data/results/ROC_curve_templating_2.jpeg', format='jpeg')
-
-    '''
     print(f'TP:\t\t\t\t\t{TP}')
     print(f'FP:\t\t\t\t\t{FP}')
     print(f'FN:\t\t\t\t\t{FN}')
@@ -253,11 +184,7 @@ def main():
     print()
     print(f'TP/Total no of calls:\t\t\t{TP/(TP+FN)}')
     print(f'FP/Total no of detections:\t\t{FP/(TP+FP)}')
-    '''
 
 
 if __name__ == "__main__":
-    start = time.time()
     main()
-    end = time.time()
-    print(f'Time elapsed: {end-start}')

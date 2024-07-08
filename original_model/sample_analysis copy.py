@@ -149,13 +149,6 @@ def generate_plots(items, type):
 
     # PLOT 3 and 4:
     # Multiple bar chart for mean of each coefficient for all 5 samples of TP and FP
-
-    # Normalise all coefficients so that you can compare them with each other
-    all_mean_mfccs = np.array([np.array(x) for x in all_mean_mfccs])
-    all_mean_mfccs = all_mean_mfccs.T
-    all_mean_mfccs = np.array([x/(np.sum(x)) for x in all_mean_mfccs])
-    all_mean_mfccs = list(all_mean_mfccs.T)
-
     plt.figure(figsize=(10, 4))
     r = np.arange(12) 
     width = 0.1
