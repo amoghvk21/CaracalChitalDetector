@@ -5,6 +5,8 @@ import librosa
 import random
 import pytz
 from datetime import datetime
+from sklearn.metrics.pairwise import cosine_similarity, polynomial_kernel
+from sklearn.metrics import pairwise_distances
 
 
 WORKING_DIR = 'C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/'
@@ -201,6 +203,93 @@ def generate_plots_2(all_mean_mfccs_TP, all_mean_mfccs_FP):
     plt.savefig(WORKING_DIR + f'plots/multiplebarchart_mfcc_mean_2.jpeg', format='jpeg')
 
 
+def mean_square_difference_mfcc(items, type):
+    
+    # Stores list of all coefficients. For each internal list, there is a list of values from all 5 samples for their coefficients
+    # Shape (12, 5, length)
+    all_mfcc_values = [[], [], [], [], [], [], [], [], [], [], [], []]
+    
+    # Stores same data as all_mfcc_values but in different structure. 
+    # List of each file and within each file, a 2D list of (12, length)
+    # (5, 12, length)
+    all_files = []
+
+    for i, (utctimestamp, deviceno, LB_time, UB_time) in enumerate(items):
+        # Get filepath and open wav file
+        timezone = pytz.timezone('Asia/Kathmandu')
+        dt = datetime.fromtimestamp(utctimestamp, tz=timezone)
+        aud, sr = librosa.load(WORKING_DIR + f'data/Test set/1 hour files/CAR{deviceno}_{dt.year}{str(dt.month).rjust(2, '0')}{str(dt.day).rjust(2, '0')}${str(dt.hour).rjust(2, '0')}{str(dt.minute).rjust(2, '0')}00_{utctimestamp}.wav')
+
+        # Convert from seconds to no of samples and round to nearest integer
+        LB_sample = round(LB_time*sr)
+        UB_sample = round(UB_time*sr)
+
+        # Chop audio to include only these relevant samples of that audio
+        chopped_aud = aud[LB_sample:UB_sample]
+
+        # Calcuate MFCC for this chopped audio clip between the relevant frequencies and append to a list
+        # Shape (12, no of samples)
+        mfcc = librosa.feature.mfcc(y=chopped_aud, sr=sr, fmin=MEAN_C_CALL_FREQ_LOW, fmax=MEAN_C_CALL_FREQ_HIGH, n_mfcc=12)
+        
+        # Go through each coefficient and append it to the relevant list
+        new_mfcc = []
+        for j, values in enumerate(mfcc):
+            # Normalise the values between 0 and 1
+            values = values/np.sum(np.abs(values))
+            all_mfcc_values[j].append(values)
+            new_mfcc.append(values)
+        new_mfcc = np.array(new_mfcc)
+
+        all_files.append(new_mfcc)
+    
+    # Get the max value in coeff_1 - We center whole sample on this (i)
+    # Get the min left and right distance - We trim all files to this so that same length
+    coeff_1 = all_mfcc_values[0]
+    indicies = []
+    left = float('inf')
+    right = float('inf')
+    for file in coeff_1:
+        indicies.append(np.argmax(file))
+        left = min(left, indicies[-1])
+        right = min(right, len(file)-indicies[-1])
+    
+    # Trim left and right of i and construct (12, 5, length) shape array
+    new_all_mfcc_values = [[] for _ in range(12)]
+    for coeff, values in enumerate(all_mfcc_values):
+        for file, v in enumerate(values):
+            i = indicies[file]
+            new_all_mfcc_values[coeff].append(v[i-left:i+right])
+    
+    # Trim left and right of i and construct (5, 12, length) shape array
+    new_all_files = [[] for _ in range(5)]
+    for file, values in enumerate(all_files):
+        for coeff, v in enumerate(values):
+            i = indicies[file]
+            new_all_files[file].append(v[i-left:i+right])
+
+    # Plot each coeff
+    for coeff, values in enumerate(new_all_mfcc_values):
+        plt.figure(figsize=(10, 4))
+        for file, v in enumerate(values):
+            plt.plot(range(len(v)), v, label=str(file+1))
+        plt.title(f'{type} {coeff+1} timestep against relative coefficient value for {len(new_all_files)} samples')
+        plt.xlabel('Timestep')
+        plt.ylabel('Relative coefficient value')
+        plt.legend()
+        plt.savefig(WORKING_DIR + f'plots/coeff_linegraph/{type}_{coeff+1}_linegraph.jpeg', format='jpeg')
+        print(f'{type}_{coeff+1}')
+
+    # Computing distance statistic
+    print(f'Mean squared difference between all pairs of the {len(all_files)} heatmaps for {type} (After correcting for the peak):')
+    new_all_files = np.array(new_all_files)
+    # Go through each pair of heatmap
+    for i, heatmap1 in enumerate(new_all_files):
+        for heatmap2 in new_all_files[i+1:]:
+            # Subtract, square, sum, divide by no of elements for mean
+            total = np.shape(heatmap1)[0] * np.shape(heatmap2)[1]
+            print((np.sum((heatmap1-heatmap2)**2))/total)
+
+
 def main():
     #get_items()  # Comment out once you have got and saved your 10 items for analysis
 
@@ -214,10 +303,19 @@ def main():
     TP_times = get_time_bounds_TP(TPs)
     FP_times = get_time_bounds_FP(FPs)
 
+    '''
     meanTP = generate_plots(TP_times, 'TP')
     meanFP = generate_plots(FP_times, 'FP')
 
     generate_plots_2(meanTP, meanFP)
+    '''
+
+    #'''
+    mean_square_difference_mfcc(TP_times,  'TP')
+    print()
+    mean_square_difference_mfcc(FP_times, 'FP')
+    #'''
+    
 
 if __name__ == '__main__':
     main()
