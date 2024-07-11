@@ -7,7 +7,7 @@ import pytz
 from datetime import datetime
 from sklearn.manifold import MDS
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import silhouette_score, adjusted_rand_score
 
 
 WORKING_DIR = 'C:/Users/Amogh/OneDrive - University of Cambridge/Programming-New/CaracalChitalDetector/'
@@ -430,7 +430,7 @@ def mds(items_TP, items_FP):
             count += 1
     new_all_files_FP = temp
     del temp
-
+    
     # Count this and also remove same amount of TPs
     new_all_files_TP = new_all_files_TP[:-1]
 
@@ -472,7 +472,7 @@ def mds(items_TP, items_FP):
     new_all_files_TP = np.array(new_all_files_TP)
     new_all_files_FP = np.array(new_all_files_FP)
 
-    # TPs
+    # TP pairs
     ans1 = []
     for i, heatmap1 in enumerate(new_all_files_TP):
         for heatmap2 in new_all_files_TP[i+1:]:
@@ -510,13 +510,52 @@ def mds(items_TP, items_FP):
     print(f'Best no of dimensions for MDS between 1-50 is: {best_dim}')
     print(f'Prev silhouette value with 2 dimensions is: {results[2]}')
     print(f'New best silhouette value with {best_dim} dimensions is: {results[best_dim]}')
+    
+    def most_common(l):
+        counts = np.bincount(l)
+        return np.argmax(counts)
+    
+    results = []
+    for dim in range(1, 51):
+        mds = MDS(n_components=dim, dissimilarity='precomputed', random_state=42)
+        mds_coordinates = mds.fit_transform(mat)
+        kmeans = KMeans(n_clusters=2, random_state=0)
+        kmeans.fit(mds_coordinates)
+        
+        labels = kmeans.predict(mds_coordinates)
+        labelsTP = labels[:100-count]
+        labelsFP = labels[100-count:]
+        
+        TP_class = most_common(labelsTP)
+        if TP_class == 1:
+            FP_class = 0
+        else:
+            FP_class = 1
+        
+        TP_acc = np.count_nonzero(labelsTP == TP_class)/len(labelsTP)
+        FP_acc = np.count_nonzero(labelsTP == FP_class)/len(labelsFP)
+        
+        avg = 2 / ((1 / TP_acc) + (1 / FP_acc))
+        results.append(avg)
+    best_dim = np.argmax(results)
 
-    '''
-    print(f'Repeat mds calculation for {best_dim} dimentions')
-    # Calculate the MDS coordinates
+    print()
+    print(f'Best no of dimensions for MDS between 1-50 is: {best_dim}')
+    print(f'Prev avg value with 2 dimensions is: {results[2]}')
+    print(f'New best avg value with {best_dim} dimensions is: {results[best_dim]}')
+
+    # Using optimal value of dimensions, see how well clustered the points are
     mds = MDS(n_components=best_dim, dissimilarity='precomputed', random_state=42)
     mds_coordinates = mds.fit_transform(mat)
-    '''
+    kmeans.fit(mds_coordinates)
+    labels = kmeans.predict(mds_coordinates)
+    labelsTP = labels[:100-count]
+    labelsFP = labels[100-count:]
+    print()
+    print(f'No of class 0 in TPs: {np.count_nonzero(labelsTP == 0)}')
+    print(f'No of class 1 in TPs: {np.count_nonzero(labelsTP == 1)}')
+    print(f'No of class 0 in FPs: {np.count_nonzero(labelsFP == 0)}')
+    print(f'No of class 1 in FPs: {np.count_nonzero(labelsFP == 1)}')
 
 
 def get_100_random(d):
@@ -541,7 +580,7 @@ def get_items_100():
     with open(WORKING_DIR + 'data/py_obj/FPs_templating_new.pkl', 'rb') as f:
         FPs_templating = pickle.load(f)
 
-    print('TP:')
+    print('TPS:')
     TPs = get_100_random(TPs_templating)
     print()
     print('FPs:')
@@ -554,6 +593,214 @@ def get_items_100():
 def retrieve_items_100():
     with open(WORKING_DIR + "data/py_obj/TP_FP_100_sample.pkl", 'rb') as f:
         return pickle.load(f)
+
+
+def plot_histogram(itemsTP, itemsFP):
+
+    # Already saved therefore commented out
+    '''
+    # Stores list of all coefficients. For each internal list, there is a list of values from all 5 samples for their coefficients
+    # Shape (12, 100, length)
+    all_mfcc_values_TP = [[], [], [], [], [], [], [], [], [], [], [], []]
+    
+    # Stores same data as all_mfcc_values but in different structure. 
+    # List of each file and within each file, a 2D list of (12, length)
+    # (100, 12, length)
+    all_files_TP = []
+
+    for i, (utctimestamp, deviceno, LB_time, UB_time) in enumerate(items_TP):
+        # Get filepath and open wav file
+        timezone = pytz.timezone('Asia/Kathmandu')
+        dt = datetime.fromtimestamp(utctimestamp, tz=timezone)
+        aud, sr = librosa.load(WORKING_DIR + f'data/Test set/1 hour files/CAR{deviceno}_{dt.year}{str(dt.month).rjust(2, '0')}{str(dt.day).rjust(2, '0')}${str(dt.hour).rjust(2, '0')}{str(dt.minute).rjust(2, '0')}00_{utctimestamp}.wav')
+
+        # Convert from seconds to no of samples and round to nearest integer
+        LB_sample = round(LB_time*sr)
+        UB_sample = round(UB_time*sr)
+
+        # Chop audio to include only these relevant samples of that audio
+        chopped_aud = aud[LB_sample:UB_sample]
+
+        # Calcuate MFCC for this chopped audio clip between the relevant frequencies and append to a list
+        # Shape (12, no of samples)
+        mfcc = librosa.feature.mfcc(y=chopped_aud, sr=sr, fmin=MEAN_C_CALL_FREQ_LOW, fmax=MEAN_C_CALL_FREQ_HIGH, n_mfcc=12)
+        
+        # Go through each coefficient and append it to the relevant list
+        new_mfcc = []
+        for j, values in enumerate(mfcc):
+            # Normalise the values between 0 and 1
+            values = values/np.sum(np.abs(values))
+            all_mfcc_values_TP[j].append(values)
+            new_mfcc.append(values)
+        new_mfcc = np.array(new_mfcc)
+
+        all_files_TP.append(new_mfcc)
+    
+    # Same for FPs
+    all_mfcc_values_FP = [[], [], [], [], [], [], [], [], [], [], [], []]
+    all_files_FP = []
+    for i, (utctimestamp, deviceno, LB_time, UB_time) in enumerate(items_FP):
+        # Get filepath and open wav file
+        timezone = pytz.timezone('Asia/Kathmandu')
+        dt = datetime.fromtimestamp(utctimestamp, tz=timezone)
+        aud, sr = librosa.load(WORKING_DIR + f'data/Test set/1 hour files/CAR{deviceno}_{dt.year}{str(dt.month).rjust(2, '0')}{str(dt.day).rjust(2, '0')}${str(dt.hour).rjust(2, '0')}{str(dt.minute).rjust(2, '0')}00_{utctimestamp}.wav')
+
+        # Convert from seconds to no of samples and round to nearest integer
+        LB_sample = round(LB_time*sr)
+        UB_sample = round(UB_time*sr)
+
+        # Chop audio to include only these relevant samples of that audio
+        chopped_aud = aud[LB_sample:UB_sample]
+
+        # Calcuate MFCC for this chopped audio clip between the relevant frequencies and append to a list
+        # Shape (12, no of samples)
+        mfcc = librosa.feature.mfcc(y=chopped_aud, sr=sr, fmin=MEAN_C_CALL_FREQ_LOW, fmax=MEAN_C_CALL_FREQ_HIGH, n_mfcc=12)
+        
+        # Go through each coefficient and append it to the relevant list
+        new_mfcc = []
+        for j, values in enumerate(mfcc):
+            # Normalise the values between 0 and 1
+            values = values/np.sum(np.abs(values))
+            all_mfcc_values_FP[j].append(values)
+            new_mfcc.append(values)
+        new_mfcc = np.array(new_mfcc)
+
+        all_files_FP.append(new_mfcc)
+
+    with open(WORKING_DIR + f'data/py_obj/all_files_TP_FP.pkl', 'wb') as f:
+        pickle.dump((all_files_TP, all_files_FP), f)
+
+    with open(WORKING_DIR + f'data/py_obj/all_mfcc_values_TP_FP.pkl', 'wb') as f:
+        pickle.dump((all_mfcc_values_TP, all_mfcc_values_FP), f)
+    '''
+
+    # Shape: (100, 12, length) 
+    with open(WORKING_DIR + f'data/py_obj/all_files_TP_FP.pkl', 'rb') as f:
+        all_files_TP, all_files_FP = pickle.load(f)
+    
+    # Shape: (12, 100, length) 
+    with open(WORKING_DIR + f'data/py_obj/all_mfcc_values_TP_FP.pkl', 'rb') as f:
+        all_mfcc_values_TP, all_mfcc_values_FP = pickle.load(f)
+
+    # Get the max value in coeff_1 - We center whole sample on this (i)
+    # Get the min left and right distance - We trim all files to this so that same length
+    coeff_1 = all_mfcc_values_TP[0]
+    indicies_TP = []
+    left = float('inf')
+    right = float('inf')
+    for file in coeff_1:
+        indicies_TP.append(np.argmax(file))
+        left = min(left, indicies_TP[-1])
+        right = min(right, len(file)-indicies_TP[-1])
+
+    # Get the max value in coeff_1 - We center whole sample on this (i)
+    # Get the min left and right distance - We trim all files to this so that same length
+    coeff_1 = all_mfcc_values_TP[0]
+    indicies_FP = []
+    left = float('inf')
+    right = float('inf')
+    for file in coeff_1:
+        indicies_FP.append(np.argmax(file))
+        left = min(left, indicies_FP[-1])
+        right = min(right, len(file)-indicies_FP[-1])
+    
+    # Trim left and right of i and construct (5, 12, length) shape array
+    # Only store info about the first coefficient
+    new_all_files_TP = [[] for _ in range(100)]
+    for file, values in enumerate(all_files_TP):
+        for coeff, v in enumerate(values):
+            if coeff != 0:
+                continue
+            else:
+                i = indicies_TP[file]
+                new_all_files_TP[file].append(v[i-left:i+right])
+    
+    # Trim left and right of i and construct (5, 12, length) shape array
+    # Only store info about the first coefficient
+    new_all_files_FP = [[] for _ in range(100)]
+    for file, values in enumerate(all_files_FP):
+        for coeff, v in enumerate(values):
+            if coeff != 0:
+                continue
+            else:
+                i = indicies_FP[file]
+                new_all_files_FP[file].append(v[i-left:i+right])
+
+    # Remove any elements inside "new_all_files_FP" that have incorrect shape (due to trying to center at max)
+    count = 0
+    temp = []
+    for i, x in enumerate(new_all_files_FP):
+        if len(x[0]) == (left + right):
+            temp.append(x)
+        else:
+            count += 1
+    new_all_files_FP = temp
+    del temp
+    
+    # Count this and also remove same amount of TPs
+    new_all_files_TP = new_all_files_TP[:-1]
+
+    # Calculate the average difference between TP pairs and TP-FP pairs
+    # Expect to see TPs difference be smaller (as more similar to eachother) than TP-FP pairs
+    new_all_files_TP = np.array(new_all_files_TP)
+    new_all_files_FP = np.array(new_all_files_FP)
+
+    # TP pairs
+    ans1 = []
+    for i, heatmap1 in enumerate(new_all_files_TP):
+        for heatmap2 in new_all_files_TP[i+1:]:
+            # Subtract, square, sum, divide by no of elements for mean
+            total = np.shape(heatmap1)[0] * np.shape(heatmap1)[1]
+            ans1.append((np.sum((heatmap1 - heatmap2) ** 2)) / total)
+
+    # Pairwise opposites
+    ans2 = []
+    for i, heatmap1 in enumerate(new_all_files_TP):
+        for j, heatmap2 in enumerate(new_all_files_FP):
+            # Subtract, square, sum, divide by no of elements for mean
+            total = np.shape(heatmap1)[0] * np.shape(heatmap1)[1]
+            ans2.append((np.sum((heatmap1 - heatmap2) ** 2)) / total)
+    
+    print()
+    print(f'Mean squared difference between TP pairs: {np.mean(ans1)}')
+    print(f'Mean squared difference between TP-FP pairs: {np.mean(ans2)}')
+    print(f'Score2/Score1: {np.mean(ans2)/np.mean(ans1)}')
+    print()
+    
+    ans1_new = []
+    for x in ans1:
+        y = np.log(x)
+        if y == float('-inf'):
+            continue
+        else:
+            ans1_new.append(y)
+
+    ans2_new = []
+    for x in ans2:
+        y = np.log(x) 
+        if y == float('-inf'):
+            continue
+        else:
+            ans2_new.append(y)
+
+    # Calculate histogram data
+    counts1, bin_edges1 = np.histogram(ans1_new, bins=30, density=True)
+    counts2, bin_edges2 = np.histogram(ans2_new, bins=30, density=True)
+
+    # Calculate the bin centers
+    bin_centers1 = (bin_edges1[:-1] + bin_edges1[1:]) / 2
+    bin_centers2 = (bin_edges2[:-1] + bin_edges2[1:]) / 2 
+
+    # Plot histogram as a line plot
+    plt.plot(-1*np.log(bin_centers1*-1), counts1, color='blue', label='TP-TP pairs difference')
+    plt.plot(-1*np.log(bin_centers2*-1), counts2, color='red', label='TP-FP pairs difference')
+    #plt.axvline(x=np.mean(ans1), color='blue', linestyle='--', linewidth=2, label='TP-TP pairs average difference')
+    #plt.axvline(x=np.mean(ans2), color='red', linestyle='--', linewidth=2, label='TP-FP pairs average difference')
+    plt.xlabel('Squared difference between heatmaps')
+    plt.ylabel('Density')
+    plt.title('Histogram of difference between TP-TP and TP-FP pairs')
+    plt.legend()
+    plt.show()
 
 
 def main():
@@ -604,7 +851,7 @@ def main():
 
     # MDS plot for 100 samples
     # and for each iteration of MDS, perform DFA
-    #'''
+    '''
     #get_items_100()  # Comment out once you have got and saved your 100 items for analysis
 
     TPs, FPs = retrieve_items_100()
@@ -620,8 +867,17 @@ def main():
 
     print('running mds()')
     mds(TP_times, FP_times)
-    #'''
+    '''
     
+    ##############################################
+    
+    # Plotting histogram of mean squared distance between TP-TP pairs and TP-FP pairs to find separation
+    #'''
+    #get_items_100()  # Comment out once you have got and saved your 100 items for analysis
+    TPs, FPs = retrieve_items_100()
+    plot_histogram(TPs, FPs)
+    #'''
+
 
 if __name__ == '__main__':
     main()
