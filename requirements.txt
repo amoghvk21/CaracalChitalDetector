@@ -36,6 +36,7 @@ fastjsonschema=2.20.0=pypi_0
 flatbuffers=24.3.25=pypi_0
 fonttools=4.53.0=pypi_0
 fqdn=1.5.1=pypi_0
+future=1.0.0=pypi_0
 gast=0.6.0=pypi_0
 google-pasta=0.2.0=pypi_0
 grpcio=1.64.1=pypi_0
@@ -84,6 +85,7 @@ nbclient=0.10.0=pypi_0
 nbconvert=7.16.4=pypi_0
 nbformat=5.10.4=pypi_0
 nest-asyncio=1.6.0=pypi_0
+nolds=0.5.2=pypi_0
 notebook=7.2.1=pypi_0
 notebook-shim=0.2.4=pypi_0
 numba=0.60.0=pypi_0
@@ -94,6 +96,7 @@ optree=0.12.1=pypi_0
 osqp=0.6.7.post0=pypi_0
 overrides=7.7.0=pypi_0
 packaging=24.1=pypi_0
+pandas=2.2.2=pypi_0
 pandocfilters=1.5.1=pypi_0
 parso=0.8.4=pypi_0
 pickle-mixin=1.0.2=pypi_0
@@ -149,7 +152,7 @@ tornado=6.4.1=pypi_0
 traitlets=5.14.3=pypi_0
 types-python-dateutil=2.9.0.20240316=pypi_0
 typing-extensions=4.12.2=pypi_0
-tzdata=2024a=h04d1e81_0
+tzdata=2024.1=pypi_0
 uri-template=1.3.0=pypi_0
 urllib3=2.2.2=pypi_0
 vc=14.2=h2eaa2aa_1
