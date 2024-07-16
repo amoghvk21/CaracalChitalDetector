@@ -3,7 +3,8 @@ original_model/file_1711182420.wav
 notes.txt
 .ipynb_checkpoints/
 original_model/.ipynb_checkpoints/
-andrew_cnn/annotations
-andrew_cnn/data
-andrew_cnn/output
-andrew_cnn/output_short
+cnn/annotations
+cnn/data
+cnn/output
+cnn/output_short
+cnn/all_data.pkl
