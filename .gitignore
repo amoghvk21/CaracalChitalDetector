@@ -10,4 +10,4 @@ cnn/output_short
 cnn/all_data.pkl
 cnn/old_annotations
 cnn/old_data
-data/CNN_output
+data/CNN_output/
