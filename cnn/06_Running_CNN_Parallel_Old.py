@@ -1,5 +1,4 @@
-# Used on the VM
-
+# Used on home machine
 
 import tensorflow as tf
 import numpy as np
@@ -12,10 +11,10 @@ import os
 from keras import backend as K
 import keras
 import multiprocessing as mp
-import logging # Used to remove tf messages
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2" # Used to remove tf messages
-logging.getLogger("tensorflow").setLevel(logging.ERROR) # Used to remove tf messages
-logging.getLogger("tensorflow").addHandler(logging.NullHandler(logging.ERROR)) # Used to remove tf messages
+import logging
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+logging.getLogger("tensorflow").addHandler(logging.NullHandler(logging.ERROR))
 
 
 ML_SR = 8000 # Target sampling rate
@@ -27,7 +26,7 @@ ML_FFT_STRIDE=1024 # Stride length in audio samples
 ML_NUM_FFT_STRIDES = 12 # How many strides make up a sample
 THRESHOLDED = False # Threshold the template or not
 
-#ONE_HOUR_FILE_PATH = "C:\\Users\\Amogh\\OneDrive - University of Cambridge\\Programming-New\\CaracalChitalDetector\\cnn\\data\\CAR204_20240325$164500_1711364400.wav"  # Which 1 hour file you want to look at
+ONE_HOUR_FILE_PATH = "C:\\Users\\Amogh\\OneDrive - University of Cambridge\\Programming-New\\CaracalChitalDetector\\cnn\\data\\CAR204_20240325$164500_1711364400.wav"  # Which 1 hour file you want to look at
 #SELECTION_TABLE_FILE_PATH = ONE_HOUR_FILE_PATH[:-3] + "Table.1.selections.txt"
 #SELECTION_TABLE_FILE_PATH = SELECTION_TABLE_FILE_PATH.replace("data", "annotations")
 #CNN_MODEL_PATH = "03MLouput20240811v001.keras"  # Path of where the pretrained model is stored
@@ -112,8 +111,7 @@ def wavFileToSpecImg(aud,num_strides,target_sr=8000,THRESHOLDED=True,SCALED=True
 '''
 
 
-#@keras.saving.register_keras_serializable()
-@keras.utils.register_keras_serializable()
+@keras.saving.register_keras_serializable()
 def f1_metric(y_true, y_pred):
     y_true = K.cast(y_true, 'int32')
     y_pred = K.cast(K.round(y_pred), 'int32')
@@ -158,9 +156,9 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 
 def job(filename_count, filename, model):
-    C_calls_all = []
-    filenames = os.listdir("C:\\Users\\av670\\CaracalChitalDetector\\cnn\\data")
-    ONE_HOUR_FILE_PATH = "C:\\Users\\av670\\CaracalChitalDetector\\cnn\\data\\" + filename
+    C_calls_all = []#
+    filenames = os.listdir("C:\\Users\\Amogh\\OneDrive - University of Cambridge\\Programming-New\\CaracalChitalDetector\\cnn\\data")
+    ONE_HOUR_FILE_PATH = "C:\\Users\\Amogh\\OneDrive - University of Cambridge\\Programming-New\\CaracalChitalDetector\\cnn\\data\\" + filename
     SELECTION_TABLE_FILE_PATH = ONE_HOUR_FILE_PATH[:-3] + "Table.1.selections.txt"
     SELECTION_TABLE_FILE_PATH = SELECTION_TABLE_FILE_PATH.replace("data", "annotations")
     
@@ -222,7 +220,6 @@ def job(filename_count, filename, model):
     # If went through all annotations and didn't find, increment FN
     # <start/end> means true call
     # <start/end>1 means detected call
-    #print(list(zip(df['RelativeStartTime'], df['RelativeEndTime'])))
     for start, end in zip(df['RelativeStartTime'], df['RelativeEndTime']):
         start = start.to_pytimedelta().total_seconds()
         end = end.to_pytimedelta().total_seconds()
@@ -249,32 +246,41 @@ def job(filename_count, filename, model):
             C_calls_all.append((filename, start, end))
 
     print()
-
+    
     if TP+FN == 0:
         sensitivity = None
     else:
         sensitivity = FN/(TP+FN)
     FAR = FP/totaltime
-
-    print(f'{filename_count}: {sensitivity}, {FAR}')
+    print(sensitivity, FAR)
     return sensitivity, FAR, C_calls_all
 
 
 ##################################################################################
 
 def main():
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Used to remove tf messages
-    logging.getLogger('tensorflow').setLevel(logging.FATAL) # Used to remove tf messages
-    filenames = os.listdir("C:\\Users\\av670\\CaracalChitalDetector\\cnn\\data")
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+    logging.getLogger('tensorflow').setLevel(logging.FATAL)
+    sensitivities = []
+    FARs = []
+    filenames = os.listdir("C:\\Users\\Amogh\\OneDrive - University of Cambridge\\Programming-New\\CaracalChitalDetector\\cnn\\data")
+    C_calls_all = []
     model = tf.keras.models.load_model(CNN_MODEL_PATH)
 
     all_processes = []
     for filename_count, filename in enumerate(filenames):
-        p = mp.Process(target=job, args=(filename_count, filename, model))
-        all_processes.append(p)
-        p.start()
+        all_processes.append(mp.Process(target=job, args=(filename_count, filename, model)))
+        #sensitivity, FAR, all = job(filename_count, filename, model)
+        #sensitivity, FAR, all = all_processes[-1].start()
+        all_processes[-1].start()
+        #sensitivities.append(sensitivity)
+        #FARs.append(FAR)
+        #C_calls_all = C_calls_all + all
 
-    # can save C_calls_all for later use in refeeding the network to get better performance
+    # can save C_calls_all for later use in refeeding the network
+
+    print(sensitivities)
+    print(FARs)
 
 
 if __name__ == '__main__':
