@@ -16,8 +16,7 @@ def create_master_db():
 
     for path in paths:
         with open(path, 'r') as f:
-            filename = path[115:]
-            
+            filename = path.split("\\")[-1]
             # Getting deviceno from path as it can be variable length
             deviceno = ''
             i = 3
@@ -139,7 +138,7 @@ def testbed(preds):
 
 
 # CHANGE IMPLEMENTATION BASED ON WHICH MODEL YOU WANT TO TEST
-# At the moment, testing pre existing templating model
+# At the moment, testing pre existing templating model and the data is lready saved
 def get_preds():
 
     preds = {}

@@ -2,6 +2,9 @@
 # $ conda create --name <env> --file <this file>
 # platform: win-64
 # Notice numpy must be < 2.0.0 as other libraries don't have support for it yet
+
+# might not work, then use requirements2 (use with pip)
+
 absl-py=2.1.0=pypi_0
 anyio=4.4.0=pypi_0
 argon2-cffi=23.1.0=pypi_0

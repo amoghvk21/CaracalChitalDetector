@@ -20,7 +20,7 @@ def create_master_db():
 
     for path in paths:
         with open(path, 'r') as f:
-            filename = path[115:]
+            filename = path.split("\\")[-1]
             
             # Getting deviceno from path as it can be variable length
             deviceno = ''

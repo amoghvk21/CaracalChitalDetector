@@ -265,6 +265,7 @@ def job(filename_count, filename, model):
 def main():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Used to remove tf messages
     logging.getLogger('tensorflow').setLevel(logging.FATAL) # Used to remove tf messages
+    
     filenames = os.listdir("C:\\Users\\av670\\CaracalChitalDetector\\cnn\\data")
     model = tf.keras.models.load_model(CNN_MODEL_PATH)
 
